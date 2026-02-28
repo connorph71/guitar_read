@@ -1,1 +1,3 @@
-Test
+This is a raspberry pi 5 project that read's a guitar's input and has a UI output.
+
+work in progress...
