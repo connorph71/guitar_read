@@ -2,8 +2,8 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2
 LDFLAGS = -lfftw3f -lm
 
-TARGET = mic_main
-SRC = mic_main.c rms.c
+TARGET = mic_read
+SRC = main.c rms.c
 
 all: $(TARGET)
 
