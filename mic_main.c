@@ -7,51 +7,16 @@
 #include <math.h> 
 #include <fftw3.h>
 
+#include "rms.h"
+
 #define ADC_ADDR 0x4b
 #define ADC_MIDPOINT 128 
 #define WINDOW_SIZE 512
 #define SAMPLE_RATE 2000.0f
 
-float compute_mean(int*, int); 
-float compute_rms(int*, int); 
-
-float compute_mean(int *samples, int n) { 
-	float sum = 0.0f; 
-	for (int i = 0; i < n; i++) { 
-		sum += samples[i]; 
-	} 
-	return sum / n; 
-} 
-
-float compute_rms(int *samples, int n) { 
-    int min = 255, max = 0;
-
-    for (int i = 0; i < n; i++) {
-        if (samples[i] < min) min = samples[i];
-        if (samples[i] > max) max = samples[i];
-    }
-
-    float mean = compute_mean(samples, n); 
-    float sum = 0.0f; 
-
-    for (int i = 0; i < n; i++) { 
-        float centered = samples[i] - mean; 
-        sum += centered * centered; 
-    }
-
-    float rms = sqrt(sum / n);
-
-    /*printf("\rmin=%3d max=%3d span=%3d rms=%6.2f   \n",
-           min, max, max - min, rms);
-	*/
-
-    return rms; 
-}
-
 int main() { 
 	float samples_f[WINDOW_SIZE];
 	fftwf_complex *fft_out = fftwf_malloc(sizeof(fftwf_complex) * (WINDOW_SIZE/2 + 1));
-	//fftwf_complex fft_out[WINDOW_SIZE/2 + 1];
 	fftwf_plan fft_plan;
 
 
@@ -60,30 +25,22 @@ int main() {
 	if (fd < 0) { 
 		perror("Failed to open I2C bus"); 
 		return 1; 
-	} 
+	}
 	
 	// connect to ADC
 	if (ioctl(fd, I2C_SLAVE, ADC_ADDR) < 0) { 
 		perror("Failed to connect to ADC"); 
 		return 1; 
-	} 
+	}
 
 	fft_plan = fftwf_plan_dft_r2c_1d(WINDOW_SIZE, 
 							samples_f, 
 							fft_out, 
 							FFTW_MEASURE);
-
-	
-	/*fft_plan = fftwf_plan_dft_r2c_1d(
-    	WINDOW_SIZE,
-    	samples_f,
-    	fft_out,
-    	FFTW_MEASURE
-		); */
 	
 	unsigned char control = 0x84; 
 	unsigned char value; 
-	int samples[WINDOW_SIZE]; 
+	float samples[WINDOW_SIZE]; 
 	int index = 0; 
 		
 	while (1) { 
@@ -92,12 +49,11 @@ int main() {
 		read(fd, &value, 1); 
 
 		// actual sample 
-		// samples[index++] = value; 
-
-		// float rms = compute_rms(samples, WINDOW_SIZE);
+		samples[index++] = value; 
 
 		/*RMS scaling
-		if (index >= WINDOW_SIZE) { 
+		float rms = compute_rms(samples, WINDOW_SIZE);
+		if (index >= WINDOW_SIZE) {
 			float rms = compute_rms(samples, WINDOW_SIZE); 
 			int bars = rms / 2; // scale factor 
 			if (bars > 40) 
@@ -116,7 +72,7 @@ int main() {
 		} 
 		
 
-		float rms = compute_rms(samples, WINDOW_SIZE);
+		//float rms = compute_rms(samples, WINDOW_SIZE);
 		if (rms < 3.0f) {   // tune later
     		index = 0;
     		//continue;
@@ -125,10 +81,7 @@ int main() {
 
 		
 
-		// FFT
-		samples[index++] = value;
-		//printf("index: %d\n", index);
-		
+		// FFT		
 		if (index >= WINDOW_SIZE) { 	
 
     		// 1. Compute mean (DC offset)
@@ -237,7 +190,7 @@ int main() {
 
 			index = 0;
 		}
-//
+	//
 	usleep(150);
 	} 
 
