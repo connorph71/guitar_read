@@ -11,7 +11,7 @@
 
 #define ADC_ADDR 0x4b
 #define ADC_MIDPOINT 128 
-#define WINDOW_SIZE 1024
+#define WINDOW_SIZE 256
 #define SAMPLE_RATE 2000.0f
 
 int main() { 
@@ -51,7 +51,7 @@ int main() {
 		// actual sample 
 		samples[index++] = value; 
 
-		/*RMS scaling
+		//RMS scaling
 		float rms = compute_rms(samples, WINDOW_SIZE);
 		if (index >= WINDOW_SIZE) {
 			float rms = compute_rms(samples, WINDOW_SIZE); 
@@ -77,11 +77,11 @@ int main() {
     		index = 0;
     		//continue;
 		}
-		*/
+		
 
 		
 
-		// FFT		
+		/* FFT		
 		if (index >= WINDOW_SIZE) { 	
 
     		// 1. Compute mean (DC offset)
@@ -113,7 +113,7 @@ int main() {
 			for (int k = k_min; k <= k_max; k++) {
     			float re = fft_out[k][0];
     			float im = fft_out[k][1];
-    			float mag = re*re + im*im;   // squared magnitude
+    			float mag = sqrt((re*re) + (im*im));   // squared magnitude
 
 			    if (mag > max_mag) {
     	    		max_mag = mag;
@@ -194,7 +194,7 @@ int main() {
 
 			index = 0;
 		}
-	//
+	*/
 	usleep(500);
 	} 
 
