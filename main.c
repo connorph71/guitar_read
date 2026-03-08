@@ -11,7 +11,7 @@
 
 #define ADC_ADDR 0x4b
 #define ADC_MIDPOINT 128 
-#define WINDOW_SIZE 256
+#define WINDOW_SIZE 512
 #define SAMPLE_RATE 2000.0f
 
 int main() { 
@@ -51,7 +51,7 @@ int main() {
 		// actual sample 
 		samples[index++] = value; 
 
-		//RMS scaling
+		/*RMS scaling
 		float rms = compute_rms(samples, WINDOW_SIZE);
 		if (index >= WINDOW_SIZE) {
 			float rms = compute_rms(samples, WINDOW_SIZE); 
@@ -77,11 +77,12 @@ int main() {
     		index = 0;
     		//continue;
 		}
+		*/
 		
 
 		
 
-		/* FFT		
+		// FFT		
 		if (index >= WINDOW_SIZE) { 	
 
     		// 1. Compute mean (DC offset)
@@ -100,9 +101,8 @@ int main() {
 
 			// 4. Magnitude Spectrum (peak detection) 
 
-			// guitar range
-			int k_min = (int)(70.0f * WINDOW_SIZE / SAMPLE_RATE);
-			int k_max = (int)(400.0f * WINDOW_SIZE / SAMPLE_RATE);
+			int k_min = 2;  // ignore DC + very low bins
+			int k_max = (int)(1000.0f * WINDOW_SIZE / SAMPLE_RATE);
 			
 			if (k_max > WINDOW_SIZE/2 - 1)
 	    		k_max = WINDOW_SIZE/2 - 1;
@@ -148,8 +148,8 @@ int main() {
 	 		   delta = 0.5f * (alpha - gamma) / denom;		
 			}
 			
-			float freq = (float)max_bin * (float)SAMPLE_RATE / (float)WINDOW_SIZE;
-			//float freq = (max_bin + delta) * SAMPLE_RATE / WINDOW_SIZE;
+			//float freq = (float)max_bin * (float)SAMPLE_RATE / (float)WINDOW_SIZE;
+			float freq = (max_bin + delta) * SAMPLE_RATE / WINDOW_SIZE;
 
 			if (!isfinite(freq) || freq < 50.0f || freq > 1000.0f) {
     			index = 0;
@@ -164,13 +164,13 @@ int main() {
         			float im = fft_out[half_bin][1];
         			float half_mag = sqrtf(re*re + im*im);
 
-        			if (half_mag > 0.15f * max_mag)
+        			if (half_mag > 0.4f * max_mag)
     				freq *= 0.5f;
     			}
 			}
 			
 			// 7. Freq -> Notes
-			printf("bin=%d delta=%f\n", max_bin, delta);
+			//printf("bin=%d delta=%f\n", max_bin, delta);
 			float note_num = 69.0f + 12.0f * log2f(freq / 440.0f);
 
 			if (!isfinite(note_num)) {
@@ -194,8 +194,8 @@ int main() {
 
 			index = 0;
 		}
-	*/
-	usleep(500);
+	//
+	usleep(150);
 	} 
 
 	fftwf_destroy_plan(fft_plan);
