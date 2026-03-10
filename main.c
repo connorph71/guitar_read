@@ -11,8 +11,8 @@
 
 #define ADC_ADDR 0x4b
 #define ADC_MIDPOINT 128 
-#define WINDOW_SIZE 512
-#define SAMPLE_RATE 2000.0f
+#define WINDOW_SIZE 2048
+#define SAMPLE_RATE 4000.0f
 
 int main() { 
 	float samples_f[WINDOW_SIZE];
@@ -78,7 +78,6 @@ int main() {
     		//continue;
 		}
 		*/
-		
 
 		
 
@@ -100,10 +99,12 @@ int main() {
 		    fftwf_execute(fft_plan);
 
 			// 4. Magnitude Spectrum (peak detection) 
-
-			int k_min = 2;  // ignore DC + very low bins
-			int k_max = (int)(1000.0f * WINDOW_SIZE / SAMPLE_RATE);
 			
+			int k_min = 70 * WINDOW_SIZE / SAMPLE_RATE;
+			int k_max = 700 * WINDOW_SIZE / SAMPLE_RATE;
+			//int k_min = 2;  // ignore DC + very low bins
+			//int k_max = (int)(1000.0f * WINDOW_SIZE / SAMPLE_RATE);
+
 			if (k_max > WINDOW_SIZE/2 - 1)
 	    		k_max = WINDOW_SIZE/2 - 1;
 	
@@ -113,9 +114,9 @@ int main() {
 			for (int k = k_min; k <= k_max; k++) {
     			float re = fft_out[k][0];
     			float im = fft_out[k][1];
-    			float mag = sqrt((re*re) + (im*im));   // squared magnitude
+    			float mag = re*re + im*im;   // squared magnitude
 
-			    if (mag > max_mag) {
+			    if (mag > max_mag * 0.85) {
     	    		max_mag = mag;
         			max_bin = k;
     			}
@@ -148,29 +149,36 @@ int main() {
 	 		   delta = 0.5f * (alpha - gamma) / denom;		
 			}
 			
-			//float freq = (float)max_bin * (float)SAMPLE_RATE / (float)WINDOW_SIZE;
 			float freq = (max_bin + delta) * SAMPLE_RATE / WINDOW_SIZE;
-
+			printf("%f = (%d + %f) * %f / %d\n", freq, max_bin, delta, SAMPLE_RATE, WINDOW_SIZE);
 			if (!isfinite(freq) || freq < 50.0f || freq > 1000.0f) {
     			index = 0;
     			continue;
 			}
 
 			// 6. Harmonic Correction
-			if (freq > 100.0f) {
-    			int half_bin = (int)((freq * 0.5f) * WINDOW_SIZE / SAMPLE_RATE);
-    			if (half_bin > 0 && half_bin < WINDOW_SIZE/2) {
-        			float re = fft_out[half_bin][0];
-        			float im = fft_out[half_bin][1];
-        			float half_mag = sqrtf(re*re + im*im);
+			if(freq > 100) { 	
+				float harm_ratios[] = {0.5f, 0.333f, 0.25f, 0.2f, 0.16};
 
-        			if (half_mag > 0.4f * max_mag)
-    				freq *= 0.5f;
-    			}
+				for(int i = 0; i < 5; i++) {
+					//printf("ratio %2.2f: \n", harm_ratios[i]);
+			    	float test_freq = freq * harm_ratios[i];
+    				int test_bin = test_freq * WINDOW_SIZE / SAMPLE_RATE;
+	
+		    		float re = fft_out[test_bin][0];
+    				float im = fft_out[test_bin][1];
+    				float mag = sqrtf(re*re + im*im);
+	
+				    if(mag > 0.1f * max_mag) {
+				        //printf("hit! %f -> %f\n", freq, test_freq);
+						freq = test_freq;
+						
+        				break;
+    				}
+				}
 			}
-			
+
 			// 7. Freq -> Notes
-			//printf("bin=%d delta=%f\n", max_bin, delta);
 			float note_num = 69.0f + 12.0f * log2f(freq / 440.0f);
 
 			if (!isfinite(note_num)) {
@@ -185,17 +193,17 @@ int main() {
     			"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"
 				};
 
-			printf("\rFreq: %6.1f Hz | Note: %s | %+6.1f cents    ",
+			printf("\rFreq: %6.1f Hz | Note: %s | %+6.1f cents    \n",
     	   		freq,
        			names[midi % 12],
        			cents);
 
-			fflush(stdout);
+			//fflush(stdout);
 
 			index = 0;
 		}
 	//
-	usleep(150);
+	usleep(250);
 	} 
 
 	fftwf_destroy_plan(fft_plan);
