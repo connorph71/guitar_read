@@ -48,7 +48,7 @@ int main() {
 		read(fd, &value, 1); 
 		read(fd, &value, 1); 
 
-		// actual sample 
+		// raw sampled data 
 		samples[index++] = value; 
 
 		/*RMS scaling
@@ -79,31 +79,28 @@ int main() {
 		}
 		*/
 
-		
-
 		// FFT		
 		if (index >= WINDOW_SIZE) { 	
 
     		// 1. Compute mean (DC offset)
     		float mean = compute_mean(samples, WINDOW_SIZE);
-		
+			
 
     		// 2. Convert to float + Hann window
-    		for (int i = 0; i < WINDOW_SIZE; i++) {
+			for (int i = 0; i < WINDOW_SIZE; i++) {
         		float centered = samples[i] - mean;
-        		float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (WINDOW_SIZE - 1)));
+				
+				float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (WINDOW_SIZE - 1)));
         		samples_f[i] = centered * w;
     		}
-		
+
 			// 3. FFT
 		    fftwf_execute(fft_plan);
 
 			// 4. Magnitude Spectrum (peak detection) 
-			
-			int k_min = 70 * WINDOW_SIZE / SAMPLE_RATE;
-			int k_max = 700 * WINDOW_SIZE / SAMPLE_RATE;
-			//int k_min = 2;  // ignore DC + very low bins
-			//int k_max = (int)(1000.0f * WINDOW_SIZE / SAMPLE_RATE);
+			//fit guitar freq spectrum
+			int k_min = (int)(70.0f * WINDOW_SIZE / SAMPLE_RATE);
+			int k_max = (int)(350.0f * WINDOW_SIZE / SAMPLE_RATE);
 
 			if (k_max > WINDOW_SIZE/2 - 1)
 	    		k_max = WINDOW_SIZE/2 - 1;
@@ -121,8 +118,7 @@ int main() {
         			max_bin = k;
     			}
 			}
-
-
+			
 			//printf("sample[0]=%f\n", samples_f[0]);
 			//printf("max_bin=%d max_mag=%f\n", max_bin, max_mag);
 			
@@ -131,6 +127,7 @@ int main() {
     			index = 0;
     			continue;
 			}
+
 			// 5. Parabolic Interpolation
 			float alpha = fft_out[max_bin - 1][0]*fft_out[max_bin - 1][0] +
         	      fft_out[max_bin - 1][1]*fft_out[max_bin - 1][1];
@@ -150,7 +147,7 @@ int main() {
 			}
 			
 			float freq = (max_bin + delta) * SAMPLE_RATE / WINDOW_SIZE;
-			printf("%f = (%d + %f) * %f / %d\n", freq, max_bin, delta, SAMPLE_RATE, WINDOW_SIZE);
+			//printf("%f = (%d + %f) * %f / %d\n", freq, max_bin, delta, SAMPLE_RATE, WINDOW_SIZE);
 			if (!isfinite(freq) || freq < 50.0f || freq > 1000.0f) {
     			index = 0;
     			continue;
@@ -169,10 +166,9 @@ int main() {
     				float im = fft_out[test_bin][1];
     				float mag = sqrtf(re*re + im*im);
 	
-				    if(mag > 0.1f * max_mag) {
+				    if(mag > 0.15f * max_mag) {
 				        //printf("hit! %f -> %f\n", freq, test_freq);
 						freq = test_freq;
-						
         				break;
     				}
 				}
@@ -193,12 +189,12 @@ int main() {
     			"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"
 				};
 
-			printf("\rFreq: %6.1f Hz | Note: %s | %+6.1f cents    \n",
+			printf("\rFreq: %6.1f Hz | Note: %s | %+6.1f cents    ",
     	   		freq,
        			names[midi % 12],
        			cents);
 
-			//fflush(stdout);
+			fflush(stdout);
 
 			index = 0;
 		}
