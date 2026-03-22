@@ -15,6 +15,7 @@
 #define SAMPLE_RATE 4000.0f
 
 int main() { 
+	setvbuf(stdout, NULL, _IONBF, 0);
 	float samples_f[WINDOW_SIZE];
 	fftwf_complex *fft_out = fftwf_malloc(sizeof(fftwf_complex) * (WINDOW_SIZE/2 + 1));
 	fftwf_plan fft_plan;
@@ -49,8 +50,17 @@ int main() {
 		read(fd, &value, 1); 
 
 		// raw sampled data 
-		samples[index++] = value; 
+		samples[index] = value;
 
+		// normalize to [-1, 1]
+		float normalized = ((float)value - ADC_MIDPOINT) / ADC_MIDPOINT;
+
+		printf("%f\n", normalized);
+
+		fflush(stdout);
+
+		index++;
+		
 		/*RMS scaling
 		float rms = compute_rms(samples, WINDOW_SIZE);
 		if (index >= WINDOW_SIZE) {
@@ -79,7 +89,7 @@ int main() {
 		}
 		*/
 
-		// FFT		
+		/* FFT		
 		if (index >= WINDOW_SIZE) { 	
 
     		// 1. Compute mean (DC offset)
@@ -198,8 +208,8 @@ int main() {
 
 			index = 0;
 		}
-	//
-	usleep(250);
+	*/
+	//usleep(250);
 	} 
 
 	fftwf_destroy_plan(fft_plan);
