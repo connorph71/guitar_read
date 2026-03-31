@@ -53,9 +53,9 @@ int main() {
 		samples[index] = value;
 
 		// normalize to [-1, 1]
-		float normalized = ((float)value - ADC_MIDPOINT) / ADC_MIDPOINT;
+		//float normalized = ((float)value - ADC_MIDPOINT) / ADC_MIDPOINT;
 
-		printf("%f\n", normalized);
+		printf("%d\n", value);
 
 		fflush(stdout);
 
