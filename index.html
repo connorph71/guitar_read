@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let data = [];
+
+console.log("SCRIPT LOADED");
+
+const ws = new WebSocket("ws://10.195.150.111:8766");
+
+ws.onopen = () => console.log("CONNECTED");
+
+ws.onmessage = (event) => {
+  console.log("DATA:", event.data);
+
+  const val = parseFloat(event.data);
+  if (!isNaN(val)) {
+    data.push(val);
+    if (data.length > 500) data.shift();
+  }
+};
+
+ws.onerror = (e) => console.log("ERROR", e);
+ws.onclose = () => console.log("CLOSED");
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.beginPath();
+
+  for (let i = 0; i < data.length; i++) {
+    let x = i;
+    let y = canvas.height / 2 - data[i] * 0.5;
+
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+
+  ctx.stroke();
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+
+</body>
+</html>

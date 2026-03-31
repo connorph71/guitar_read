@@ -2,38 +2,34 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
+CHUNK = 512  # smaller = smoother plot
+
 plt.ion()
+fig, ax = plt.subplots()
 
-fig, axs = plt.subplots(4, 1)
+x = np.arange(CHUNK)
+line, = ax.plot(x, np.zeros(CHUNK))
 
-while True:
-    line = sys.stdin.readline()
+ax.set_ylim(-1, 1)
+ax.set_xlim(0, CHUNK)
+ax.set_title("Real-Time Mic Input")
+ax.set_xlabel("Samples")
+ax.set_ylabel("Amplitude")
 
-    if not line:
-        break
+buffer = []
 
-    parts = line.split()
-    label = parts[0]
-    data = np.array(parts[1:], dtype=float)
+for line_in in sys.stdin:
+    try:
+        val = float(line_in.strip())
+        buffer.append(val)
 
-    if label == "RAW":
-        axs[0].clear()
-        axs[0].plot(data)
-        axs[0].set_title("Raw Mic Signal")
+        if len(buffer) >= CHUNK:
+            data = np.array(buffer[:CHUNK])
+            buffer = buffer[CHUNK:]
 
-    elif label == "CENTERED":
-        axs[1].clear()
-        axs[1].plot(data)
-        axs[1].set_title("Mean Removed")
+            line.set_ydata(data)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
 
-    elif label == "WINDOWED":
-        axs[2].clear()
-        axs[2].plot(data)
-        axs[2].set_title("Hann Window Applied")
-
-    elif label == "FFT":
-        axs[3].clear()
-        axs[3].plot(data)
-        axs[3].set_title("FFT Magnitude")
-
-        plt.pause(0.01)
+    except:
+        pass
