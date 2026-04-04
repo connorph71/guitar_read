@@ -1,5 +1,6 @@
 // Author: Connor Hoang 
 #include <math.h>
+#include <stdio.h>
 #include "rms.h"
 
 float compute_mean(float *samples, int n) { 
@@ -33,4 +34,27 @@ float compute_rms(float *samples, int n) {
 	*/
 
     return rms; 
+}
+
+void print_rms(float *samples, int window_size, int index){
+	float rms = compute_rms(samples, window_size);
+	if (index >= window_size) {
+		rms = compute_rms(samples, window_size); 
+		int bars = rms / 2; // scale factor 
+		
+		if (bars > 40) 
+			bars = 40; 
+		
+		printf("\rRMS: %3.0f |", rms); 
+			
+		for (int i = 0; i < bars; i++) 
+			printf("¦"); 
+				
+		for (int i = bars; i < 40; i++) 
+			printf(" "); 
+			
+		printf("|"); 
+		fflush(stdout); 
+		index = 0; 	
+	} 
 }

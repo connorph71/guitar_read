@@ -7,6 +7,7 @@
 #include <math.h> 
 #include <fftw3.h>
 
+#include "mic_read.h"
 #include "rms.h"
 
 #define ADC_ADDR 0x4b
@@ -14,80 +15,34 @@
 #define WINDOW_SIZE 2048
 #define SAMPLE_RATE 4000.0f
 
+float data_center(float* samples, float* samples_f, int mean);
+
 int main() { 
 	setvbuf(stdout, NULL, _IONBF, 0);
 	float samples_f[WINDOW_SIZE];
 	fftwf_complex *fft_out = fftwf_malloc(sizeof(fftwf_complex) * (WINDOW_SIZE/2 + 1));
 	fftwf_plan fft_plan;
 
-
-	// open i2c
-	int fd = open("/dev/i2c-1", O_RDWR); 
-	if (fd < 0) { 
-		perror("Failed to open I2C bus"); 
-		return 1; 
-	}
-	
-	// connect to ADC
-	if (ioctl(fd, I2C_SLAVE, ADC_ADDR) < 0) { 
-		perror("Failed to connect to ADC"); 
-		return 1; 
-	}
-
 	fft_plan = fftwf_plan_dft_r2c_1d(WINDOW_SIZE, 
 							samples_f, 
 							fft_out, 
 							FFTW_MEASURE);
 	
-	unsigned char control = 0x84; 
-	unsigned char value; 
 	float samples[WINDOW_SIZE]; 
 	int index = 0; 
+	int value = 0;
 		
 	while (1) { 
-		write(fd, &control, 1); 
-		read(fd, &value, 1); 
-		read(fd, &value, 1); 
-
 		// raw sampled data 
-		samples[index] = value;
-
-		// normalize to [-1, 1]
-		//float normalized = ((float)value - ADC_MIDPOINT) / ADC_MIDPOINT;
-
+		raw = mic_read(ADC_ADDR);
+		
+		//int raw = value;
 		printf("%d\n", value);
-
 		fflush(stdout);
 
 		index++;
-		
-		/*RMS scaling
-		float rms = compute_rms(samples, WINDOW_SIZE);
-		if (index >= WINDOW_SIZE) {
-			float rms = compute_rms(samples, WINDOW_SIZE); 
-			int bars = rms / 2; // scale factor 
-			if (bars > 40) 
-				bars = 40; 
-			printf("\rRMS: %3.0f |", rms); 
-			
-			for (int i = 0; i < bars; i++) 
-				printf("¦"); 
-				
-			for (int i = bars; i < 40; i++) 
-				printf(" "); 
-			
-			printf("|"); 
-			fflush(stdout); 
-			index = 0; 	
-		} 
-		
 
-		//float rms = compute_rms(samples, WINDOW_SIZE);
-		if (rms < 3.0f) {   // tune later
-    		index = 0;
-    		//continue;
-		}
-		*/
+		float centered_data;
 
 		/* FFT		
 		if (index >= WINDOW_SIZE) { 	
@@ -95,13 +50,13 @@ int main() {
     		// 1. Compute mean (DC offset)
     		float mean = compute_mean(samples, WINDOW_SIZE);
 			
-
-    		// 2. Convert to float + Hann window
+			// 2. Convert to float + Hann window
 			for (int i = 0; i < WINDOW_SIZE; i++) {
         		float centered = samples[i] - mean;
 				
 				float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (WINDOW_SIZE - 1)));
         		samples_f[i] = centered * w;
+				centered_data = samples_f[i];
     		}
 
 			// 3. FFT
@@ -195,25 +150,26 @@ int main() {
 			int midi = (int)roundf(note_num);
 			float cents = (note_num - midi) * 100.0f;
 
+			//printf("Centered: %f Freq: %f\n", centered_data, freq);
+			
 			const char *names[] = {
     			"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"
 				};
 
+			
 			printf("\rFreq: %6.1f Hz | Note: %s | %+6.1f cents    ",
     	   		freq,
        			names[midi % 12],
        			cents);
 
 			fflush(stdout);
-
+			
 			index = 0;
 		}
 	*/
-	//usleep(250);
 	} 
 
 	fftwf_destroy_plan(fft_plan);
 
-	close(fd); 
 	return 0; 
 }

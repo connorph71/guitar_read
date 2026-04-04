@@ -7,6 +7,7 @@
 <script>
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
+const margin = { left: 60, right: 20, top: 40, bottom: 50 };
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -25,21 +26,81 @@ ws.onmessage = (event) => {
   const val = parseFloat(event.data);
   if (!isNaN(val)) {
     data.push(val);
-    if (data.length > 500) data.shift();
+    if (data.length > 2000) data.shift();
   }
 };
 
 ws.onerror = (e) => console.log("ERROR", e);
 ws.onclose = () => console.log("CLOSED");
 
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  const graphWidth = canvas.width - margin.left - margin.right;
+  const graphHeight = canvas.height - margin.top - margin.bottom;
+
+  // ----- GRID -----
+  ctx.strokeStyle = "#ddd";
+  ctx.beginPath();
+
+  for (let i = 0; i <= 5; i++) {
+    let y = margin.top + (i / 5) * graphHeight;
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(canvas.width - margin.right, y);
+  }
+
+  for (let i = 0; i <= 5; i++) {
+    let x = margin.left + (i / 5) * graphWidth;
+    ctx.moveTo(x, margin.top);
+    ctx.lineTo(x, canvas.height - margin.bottom);
+  }
+
+  ctx.stroke();
+
+  // ----- AXES -----
+  ctx.strokeStyle = "black";
+  ctx.beginPath();
+
+  ctx.moveTo(margin.left, margin.top);
+  ctx.lineTo(margin.left, canvas.height - margin.bottom);
+  ctx.lineTo(canvas.width - margin.right, canvas.height - margin.bottom);
+
+  ctx.stroke();
+
+  // ----- LABELS -----
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "black";
+
+  ctx.fillText("Live Signal", canvas.width / 2 - 50, 25);
+  ctx.fillText("Time", canvas.width / 2 - 20, canvas.height - 10);
+
+  ctx.save();
+  ctx.translate(15, canvas.height / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("Amplitude", 0, 0);
+  ctx.restore();
+
+  // ----- DATA -----
+  if (data.length < 2) {
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  	const minVal = -150;   // adjust based on your signal
+	const maxVal = 150;
+	const range = maxVal - minVal;
   ctx.beginPath();
 
   for (let i = 0; i < data.length; i++) {
-    let x = i;
-    let y = canvas.height / 2 - data[i] * 0.5;
+    let x = margin.left + (i / (data.length - 1)) * graphWidth;
+
+const midY = margin.top + graphHeight / 2;
+const verticalScale = 0.4;
+
+let normalized = (data[i] - minVal) / range - 0.5; // center around 0
+let y = midY - normalized * graphHeight * verticalScale;
 
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);

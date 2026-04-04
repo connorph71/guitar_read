@@ -3,5 +3,6 @@
 
 float compute_mean(float *samples, int n);
 float compute_rms(float *samples, int n);
+void print_rms(float *samples, int window_size, int index);
 
 #endif
