@@ -1,2 +1,5 @@
 #virtual environment for matplotlib, pandas, numpy
 .venv/
+
+#python visualizer for pi vnc
+.visualize.py
