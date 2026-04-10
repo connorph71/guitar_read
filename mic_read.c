@@ -9,20 +9,7 @@
 
 #include "mic_read.h"
 
-int mic_read(char addr) { 
-
-	// open i2c
-	int fd = open("/dev/i2c-1", O_RDWR); 
-	if (fd < 0) { 
-		perror("Failed to open I2C bus"); 
-		return 1; 
-	}
-	
-	// connect to ADC
-	if (ioctl(fd, I2C_SLAVE, addr) < 0) { 
-		perror("Failed to connect to ADC"); 
-		return 1; 
-	}
+int mic_read(int fd) { 
 	
 	unsigned char control = 0x84; 
 	unsigned char value; 
@@ -31,6 +18,5 @@ int mic_read(char addr) {
 	read(fd, &value, 1); 
 	read(fd, &value, 1); 
 
-	close(fd);
 	return value;
 } 

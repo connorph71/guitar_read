@@ -6,6 +6,8 @@
 #include <linux/i2c-dev.h> 
 #include <math.h> 
 #include <fftw3.h>
+#include <pthread.h> //multithread
+#include <unistd.h>
 
 #include "mic_read.h"
 #include "rms.h"
@@ -15,9 +17,76 @@
 #define WINDOW_SIZE 2048
 #define SAMPLE_RATE 4000.0f
 
-float data_center(float* samples, float* samples_f, int mean);
+//multithreading
+#define BUFFER_SIZE 1024
+float buffer[BUFFER_SIZE];
+int write_index = 0;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
-int main() { 
+//i2c
+int fd;
+
+//json
+float raw = 0;
+
+
+int setup_i2c(){
+	// open i2c
+	fd = open("/dev/i2c-1", O_RDWR); 
+	if (fd < 0) { 
+		perror("Failed to open I2C bus"); 
+		return 1; 
+	}
+	
+	// connect to ADC
+	if (ioctl(fd, I2C_SLAVE, ADC_ADDR) < 0) { 
+		perror("Failed to connect to ADC"); 
+		return 1; 
+	}
+
+	return fd;
+}
+
+void* mic_thread(void* arg) {
+	while (1) {
+        raw = mic_read(fd);
+
+        buffer[write_index] = raw;
+        write_index = (write_index + 1) % BUFFER_SIZE;
+		usleep(1000);
+    }
+
+    return NULL;
+}
+
+void* sender_thread(void* arg) {
+    while (1) {
+        printf("%f\n", raw);
+		fflush(stdout);
+
+		usleep(1000);
+    }
+
+    return NULL;
+}
+
+int main() {
+    pthread_t mic_t, send_t;
+	fd = setup_i2c();
+
+    pthread_mutex_init(&lock, NULL);
+
+    pthread_create(&mic_t, NULL, mic_thread, NULL);
+    pthread_create(&send_t, NULL, sender_thread, NULL);
+
+    pthread_join(mic_t, NULL);
+    pthread_join(send_t, NULL);
+
+    return 0;
+}
+
+
+/*
 	setvbuf(stdout, NULL, _IONBF, 0);
 	float samples_f[WINDOW_SIZE];
 	fftwf_complex *fft_out = fftwf_malloc(sizeof(fftwf_complex) * (WINDOW_SIZE/2 + 1));
@@ -44,7 +113,7 @@ int main() {
 
 		float centered_data;
 
-		/* FFT		
+		//FFT		
 		if (index >= WINDOW_SIZE) { 	
 
     		// 1. Compute mean (DC offset)
@@ -166,10 +235,11 @@ int main() {
 			
 			index = 0;
 		}
-	*/
+	
 	} 
 
 	fftwf_destroy_plan(fft_plan);
 
 	return 0; 
 }
+*/
