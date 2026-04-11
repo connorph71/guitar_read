@@ -3,14 +3,17 @@
 #include <stdio.h>
 #include "rms.h"
 
-float compute_mean(float *samples, int n) { 
-	float sum = 0.0f; 
-	for (int i = 0; i < n; i++) { 
-		sum += samples[i]; 
-	} 
-	return sum / n; 
-} 
+float compute_mean(float* buffer, int write_index, int window_size, int buffer_size) {
+    float sum = 0;
 
+    for (int i = 0; i < window_size; i++) {
+        int j = (write_index - 1 - i + buffer_size) % buffer_size;
+        sum += buffer[j];
+    }
+
+    return sum / window_size;
+}
+/*
 float compute_rms(float *samples, int n) { 
     int min = 255, max = 0;
 
@@ -29,9 +32,9 @@ float compute_rms(float *samples, int n) {
 
     float rms = sqrt(sum / n);
 
-    /*printf("\rmin=%3d max=%3d span=%3d rms=%6.2f   \n",
+    printf("\rmin=%3d max=%3d span=%3d rms=%6.2f   \n",
            min, max, max - min, rms);
-	*/
+	
 
     return rms; 
 }
@@ -58,3 +61,4 @@ void print_rms(float *samples, int window_size, int index){
 		index = 0; 	
 	} 
 }
+*/

@@ -20,6 +20,7 @@
 //multithreading
 #define BUFFER_SIZE 1024
 float buffer[BUFFER_SIZE];
+int sample_count = 0;
 int write_index = 0;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -28,7 +29,7 @@ int fd;
 
 //json
 float raw = 0;
-
+float centered = 0;
 
 int setup_i2c(){
 	// open i2c
@@ -51,35 +52,86 @@ void* mic_thread(void* arg) {
 	while (1) {
         raw = mic_read(fd);
 
-        buffer[write_index] = raw;
-        write_index = (write_index + 1) % BUFFER_SIZE;
+		buffer[write_index] = raw;
+		write_index = (write_index + 1) % BUFFER_SIZE;
+
+		if(sample_count < WINDOW_SIZE)
+			sample_count++;
+
 		usleep(1000);
+    }
+
+    return NULL;
+}
+
+void* centering_thread(void* arg){
+    while(1) {
+		pthread_mutex_lock(&lock);
+
+        if (sample_count >= WINDOW_SIZE) {
+
+            float sum = 0.0f;			
+
+            // compute mean of last WINDOW_SIZE samples
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                int idx = (write_index - 1 - i + BUFFER_SIZE) % BUFFER_SIZE;
+                sum += buffer[idx];
+            }
+
+            float mean = sum / WINDOW_SIZE;
+
+            // get latest sample
+            int latest_idx = (write_index - 1 + BUFFER_SIZE) % BUFFER_SIZE;
+            float latest = buffer[latest_idx];
+
+            centered = latest - mean;
+        }
+
+		pthread_mutex_unlock(&lock);
+
+        usleep(1000);
     }
 
     return NULL;
 }
 
 void* sender_thread(void* arg) {
-    while (1) {
-        printf("%f\n", raw);
-		fflush(stdout);
+    char json[128];
 
-		usleep(1000);
+    while (1) {
+        pthread_mutex_lock(&lock);
+
+        float r = raw;
+        float c = centered;
+
+        pthread_mutex_unlock(&lock);
+
+        snprintf(json, sizeof(json),
+                 "{\"raw\": %.3f, \"centered\": %.3f}\n",
+                 r, c);
+
+        printf("%s", json);
+        fflush(stdout);
+
+        usleep(1000); // match your sampling rate
     }
 
     return NULL;
 }
 
 int main() {
-    pthread_t mic_t, send_t;
+    pthread_t mic_t, center_t, send_t;
 	fd = setup_i2c();
 
     pthread_mutex_init(&lock, NULL);
 
     pthread_create(&mic_t, NULL, mic_thread, NULL);
-    pthread_create(&send_t, NULL, sender_thread, NULL);
+    pthread_create(&center_t, NULL, centering_thread, NULL);
+	pthread_create(&send_t, NULL, sender_thread, NULL);
+	
 
     pthread_join(mic_t, NULL);
+	pthread_join(center_t, NULL);
     pthread_join(send_t, NULL);
 
     return 0;
@@ -102,8 +154,6 @@ int main() {
 	int value = 0;
 		
 	while (1) { 
-		// raw sampled data 
-		raw = mic_read(ADC_ADDR);
 		
 		//int raw = value;
 		printf("%d\n", value);

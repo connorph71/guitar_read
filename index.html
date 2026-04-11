@@ -12,7 +12,8 @@ const margin = { left: 60, right: 20, top: 40, bottom: 50 };
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let data = [];
+let rawData = [];
+let centeredData = [];
 
 console.log("SCRIPT LOADED");
 
@@ -23,10 +24,17 @@ ws.onopen = () => console.log("CONNECTED");
 ws.onmessage = (event) => {
   console.log("DATA:", event.data);
 
-  const val = parseFloat(event.data);
-  if (!isNaN(val)) {
-    data.push(val);
-    if (data.length > 2000) data.shift();
+  const obj = JSON.parse(event.data);
+
+  const raw = parseFloat(obj.raw);
+  const centered = parseFloat(obj.centered);
+
+  if (!isNaN(raw) && !isNaN(centered)) {
+    rawData.push(raw);
+    centeredData.push(centered);
+
+    if (rawData.length > 2000) rawData.shift();
+    if (centeredData.length > 2000) centeredData.shift();
   }
 };
 
@@ -38,77 +46,87 @@ ctx.clearRect(0, 0, canvas.width, canvas.height);
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const graphWidth = canvas.width - margin.left - margin.right;
-  const graphHeight = canvas.height - margin.top - margin.bottom;
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "black";
 
-  // ----- GRID -----
+  const totalHeight = canvas.height;
+  const graphHeight = (totalHeight - margin.top - margin.bottom) / 2;
+  const graphWidth = canvas.width - margin.left - margin.right;
+
+  drawGraph(rawData, margin.top, graphHeight, graphWidth, "Raw Input", "Mic Voltage");
+
+  drawGraph(
+  	centeredData,
+  	margin.top + graphHeight + 40,
+  	graphHeight,
+  	graphWidth,
+  	"Centered Signal",
+  	"Amplitude"
+		);
+  requestAnimationFrame(draw);
+}
+
+function drawGraph(data, offsetY, graphHeight, graphWidth, title, yLabel) {
+  // GRID
   ctx.strokeStyle = "#ddd";
   ctx.beginPath();
 
   for (let i = 0; i <= 5; i++) {
-    let y = margin.top + (i / 5) * graphHeight;
+    let y = offsetY + (i / 5) * graphHeight;
     ctx.moveTo(margin.left, y);
     ctx.lineTo(canvas.width - margin.right, y);
   }
 
   for (let i = 0; i <= 5; i++) {
     let x = margin.left + (i / 5) * graphWidth;
-    ctx.moveTo(x, margin.top);
-    ctx.lineTo(x, canvas.height - margin.bottom);
+    ctx.moveTo(x, offsetY);
+    ctx.lineTo(x, offsetY + graphHeight);
   }
 
   ctx.stroke();
 
-  // ----- AXES -----
+  // AXES
   ctx.strokeStyle = "black";
   ctx.beginPath();
 
-  ctx.moveTo(margin.left, margin.top);
-  ctx.lineTo(margin.left, canvas.height - margin.bottom);
-  ctx.lineTo(canvas.width - margin.right, canvas.height - margin.bottom);
+  ctx.moveTo(margin.left, offsetY);
+  ctx.lineTo(margin.left, offsetY + graphHeight);
+  ctx.lineTo(canvas.width - margin.right, offsetY + graphHeight);
 
   ctx.stroke();
 
-  // ----- LABELS -----
-  ctx.font = "16px Arial";
-  ctx.fillStyle = "black";
-
-  ctx.fillText("Live Signal", canvas.width / 2 - 50, 25);
-  ctx.fillText("Time", canvas.width / 2 - 20, canvas.height - 10);
+  // LABELS
+  ctx.fillText(title, canvas.width / 2 - 40, offsetY - 10);
 
   ctx.save();
-  ctx.translate(15, canvas.height / 2);
+  ctx.translate(15, offsetY + graphHeight / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillText("Amplitude", 0, 0);
+  ctx.fillText(yLabel, 0, 0);
   ctx.restore();
 
-  // ----- DATA -----
-  if (data.length < 2) {
-    requestAnimationFrame(draw);
-    return;
-  }
+  // DATA
+  if (data.length < 2) return;
 
-  	const minVal = -150;   // adjust based on your signal
-	const maxVal = 150;
-	const range = maxVal - minVal;
+  const minVal = -90;
+  const maxVal = 90;
+  const range = maxVal - minVal;
+
+  const midY = offsetY + graphHeight / 2;
+  const verticalScale = 0.4;
+
   ctx.beginPath();
 
   for (let i = 0; i < data.length; i++) {
     let x = margin.left + (i / (data.length - 1)) * graphWidth;
 
-const midY = margin.top + graphHeight / 2;
-const verticalScale = 0.4;
-
-let normalized = (data[i] - minVal) / range - 0.5; // center around 0
-let y = midY - normalized * graphHeight * verticalScale;
+    let normalized = (data[i] - minVal) / range - 0.5;
+    let y = midY - normalized * graphHeight * verticalScale;
 
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
 
   ctx.stroke();
-
-  requestAnimationFrame(draw);
 }
 
 draw();
